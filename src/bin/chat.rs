@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_env();
 
     let openai_client = openai::Client::from_url(&config.api_key, &config.api_base);
-    let chat_model = openai_client.agent(openai::GPT_4).build();
+    let chat_model = openai_client.agent(config.model.as_str()).build();
     println!("{}", "AI Chat started. Type 'exit' to quit.".bright_green());
     println!("Using model: {}", config.model.bright_blue());
     println!("API Base: {}", config.api_base.bright_blue());
