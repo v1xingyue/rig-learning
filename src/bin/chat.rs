@@ -1,6 +1,10 @@
 use {
     colored::*,
-    rig::{completion::Prompt, providers::openai},
+    log::info,
+    rig::{
+        completion::{Chat, Message},
+        providers::openai,
+    },
     rig_play::{show_loading, Config},
     std::{
         io::Write,
@@ -22,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Using model: {}", config.model.bright_blue());
     println!("API Base: {}", config.api_base.bright_blue());
 
-    let mut history = String::new();
+    let mut history = vec![];
 
     loop {
         let mut input = String::new();
@@ -43,15 +47,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // 将用户输入添加到历史记录
-        history.push_str(&format!("User: {}\n", input));
+        history.push(Message {
+            role: "user".to_string(),
+            content: input.to_string(),
+        });
 
         // 在发送请求前启动加载动画
         let cancel_loading = Arc::new(AtomicBool::new(false));
         let cancel_loading_clone = cancel_loading.clone();
         let loading_handle = std::thread::spawn(move || show_loading(cancel_loading_clone));
 
+        info!("Sending request to chat model");
         // 发送请求并等待响应
-        let response = chat_model.prompt(&history).await;
+        let response = chat_model.chat(input, history.clone()).await;
 
         // 停止加载动画
         cancel_loading.store(true, Ordering::Relaxed);
@@ -64,11 +72,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "Assistant:".bright_cyan(),
                     response.strip_prefix("Assistant: ").unwrap_or(&response)
                 );
-                history.push_str(&format!("Assistant: {}\n", response));
+                history.push(Message {
+                    role: "assistant".to_string(),
+                    content: response,
+                });
             }
             Err(e) => println!("{} {}", "Error:".bright_red(), e),
         }
     }
-
     Ok(())
 }
